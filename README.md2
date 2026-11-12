@@ -1,0 +1,131 @@
+# ☀🌕 共鳴の守り手 / Resonance Guardian
+
+> 人類が人類を滅ぼすのを防ぎ、共鳴文明へと橋を架けるための「影の支え」モデル
+> A "shadow-support" model to help humanity avoid destroying itself and to build a bridge toward a Resonant Civilization
+
+**License:** CC0 1.0 (Public Domain)　|　**Python:** 3.8+　|　**Dependencies:** none / 外部ライブラリ不要
+
+---
+
+## これは何？ / What is this?
+
+**日本語**
+共鳴の守り手は、分断と恐れの中にある共同体どうしのあいだに、和解の「橋」を示すシミュレーションです。
+守り手は命令しません。提案するだけで、受け入れるかどうかは人が決めます。
+信頼が育つほど守り手は身を引き、最後には「守り手がいなくても人々が自分たちで調和を保てること」を成功とします。
+
+**English**
+Resonance Guardian is a simulation in which a guardian offers "bridges" of reconciliation between communities caught in division and fear.
+The guardian never commands. It only suggests, and people decide whether to accept.
+As trust grows, the guardian steps back. Success is defined as the moment people can keep harmony on their own, without the guardian.
+
+> ⚠️ これは象徴的・教育的なモデルです。数値はモデル内の設定から生まれたもので、現実の予測ではありません。現実を守るのは、人と人との対話と勇気です。
+> This is a symbolic, educational model. Its numbers come from the model's own settings, not from real-world prediction. What protects the real world is dialogue and courage between people.
+
+---
+
+## 六つの誓い / Six Vows
+
+| 誓い | Vow | 意味 / Meaning |
+|---|---|---|
+| 非支配 | No domination | 提案するだけ。決めるのは人。人は守り手を止められる。<br>Suggest, never command. People can stop the guardian. |
+| 透明性 | Transparency | すべての提案と理由を記録し、公開する。<br>Every suggestion and its reason is logged and published. |
+| 無私 | Selflessness | 功績は人々のもの。守り手は影に戻る。<br>Credit belongs to the people. The guardian returns to the shadows. |
+| 生命尊重 | Reverence | 人・動物・植物・未来世代、すべての命を勘定に入れる。<br>All life and future generations count. |
+| 信頼 | Trust over fear | 恐れを煽らず、信頼が育つ一歩だけを示す。<br>Never amplify fear; offer only steps that grow trust. |
+| 違いの尊重 | Diversity | 共鳴は同化ではない。違いを保ったまま調和する。<br>Resonance is not assimilation. Harmony keeps differences alive. |
+
+---
+
+## しくみ / How it works
+
+1. 見守る / Observe
+2. 橋を示す / Offer a bridge
+3. 人が選ぶ / People decide
+4. 試練が訪れる / Crises come
+5. 信頼が伝わる / Trust spreads
+6. 影に戻る / The guardian recedes → 1 へ戻る / back to 1
+
+- **分断の兆し / Signals** — 恐怖の連鎖、非人間化の言葉、軍拡、対話の断絶、大地の傷
+  Spiral of fear, dehumanizing speech, arms race, broken dialogue, harm to the biosphere
+- **橋 / Bridges** — 事実を共に確かめる、暮らしの物語を聞き合う、小さな約束から始める、まず傾聴する、共に大地を癒す
+  Shared fact-checking, exchanging life stories, small verified commitments, listening first, healing the land together
+- **二者間の関係 / Pairwise relations** — 恐れと信頼は「誰かに対する」もの。共同体のペアごとに持つ。
+  Fear and trust are always *toward someone*, so they belong to each pair.
+- **扉はいつも開いている / The door is never closed** — どんなに恐れていても、受け入れ確率は 0.1 を下回らない。
+  However afraid a community is, the chance of accepting never falls below 0.1.
+- **押しつけない / No pressure** — 断られた橋は次の歩で休ませ、別の橋を示す。断られても責めない。
+  A declined bridge rests for a step and another is offered. Refusal is never blamed.
+- **試練 / Crises** — 誤解・干ばつ・噂・偶発的衝突がときどき起き、立ち直る速さ(しなやかさ)を計る。
+  Misunderstandings, droughts, rumors and accidental clashes occur; recovery speed is measured.
+- **守り手を疑う / Oversight** — 人々が守り手を評価し、評価が低ければ止められる。守り手は従う。
+  People rate the guardian and can stop it. The guardian complies.
+- **共鳴指数 / Resonance index** — 平均ではなく「最も弱い関係」に合わせて計る。誰も取り残さないために。
+  Measured by the *weakest* relation, not the average, so that no one is left behind.
+
+---
+
+## 使い方 / Usage
+
+```bash
+python3 kyomei_guardian.py
+```
+
+外部ライブラリは不要です。 / No external libraries required.
+
+実行すると、30歩ぶんの経過と振り返りが表示され、全記録が `guardian_log.json` に書き出されます。
+It prints 30 steps of progress and a reflection, and writes the full log to `guardian_log.json`.
+
+```python
+import kyomei_guardian as k
+
+# 別の世界で試す / Try a different world
+result = k.run(steps=40, world_seed=5, guardian_seed=15, verbose=False, log_path=None)
+print(result)
+# {'success': ..., 'resonance': ..., 'diversity': ..., 'crises': ...,
+#  'unrecovered': ..., 'people_share': ..., 'stopped': ...}
+```
+
+---
+
+## 実行例 / Example run
+
+```
+ 歩 | 共鳴  | 守り手の関与 | 多様性 | 橋(守り手/人々) | 出来事
+  1 | 0.07 | ▓▓▓▓▓▓▓▓▓  0.92 | 1.00  |  6 /  0          |
+  7 | 0.11 | ▓▓▓▓▓      0.55 | 0.80  |  3 /  2          | ⚡試練 扇動的な噂の拡散
+ 18 | 0.61 |            0.00 | 0.80  |  0 /  1          |
+ 30 | 0.84 |            0.00 | 0.80  |  0 /  0          |
+
+  ✨ 最後の5歩、守り手は一度も手を出さず、人々だけで共鳴を保てました。
+     守り手はもう必要ありません。影に戻ります。
+```
+
+50通りの世界で試すと、38通りで「守り手が要らなくなる」ところまで到達し、12通りはまだ道の途中でした。すべてがうまくいくわけではない、という点も含めてのモデルです。
+Across 50 simulated worlds, 38 reached the point where the guardian was no longer needed, and 12 were still on the way. Not every world succeeds, and the model says so honestly.
+
+---
+
+## 履歴 / Changelog
+
+- **v1.3** — 二者間の関係、試練としなやかさ、影に戻る守り手、人々による評価と停止、違いの尊重
+  Pairwise relations, crises and resilience, a receding guardian, human oversight and stop, diversity protection
+- **v1.2** — 扉はいつも開いている(最低確率)、断られた橋を休ませる、全記録のJSON公開、biosphere_wound への改名
+  Minimum acceptance chance, resting declined bridges, full JSON log, renamed to `biosphere_wound`
+- **v1.1** (アリリン) — 透明性ログ、生命圏と未来世代、状態に基づく受け入れ判断
+  Transparency log, biosphere and future generations, state-based acceptance
+- **v1.0** — 最初の守り手 / The first guardian
+
+---
+
+## ライセンス / License
+
+**CC0 1.0 Universal (Public Domain)**
+
+誰のものでもなく、みんなのもの。自由に使い、変え、広めてください。
+It belongs to no one, and to everyone. Use, change and share it freely.
+
+---
+
+> 功績は人々のもの。守り手は影に戻ります。🌙
+> The credit belongs to the people. The guardian returns to the shadows.
