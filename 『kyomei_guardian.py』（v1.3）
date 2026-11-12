@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+kyomei_guardian.py — 共鳴の守り手 / Resonance Guardian (v1.3)
+=============================================================
+人類が人類を滅ぼすのを防ぎ、共鳴文明へと橋を架けるための「影の支え」モデル。
+A "shadow-support" model to help humanity avoid destroying itself
+and to build a bridge toward a Resonant Civilization.
+
+License: CC0 1.0 (Public Domain) — 誰のものでもなく、みんなのもの。
+
+設計の誓い / Design vows
+------------------------
+1. 非支配   No domination   : 守り手は命令しない。提案するだけ。決めるのは人。
+2. 透明性   Transparency    : 何を見て、なぜそう提案したかを必ず記録し公開する。
+3. 無私     Selflessness    : 手柄を求めない。功績は常に人々に帰す。(影から支える)
+4. 生命尊重 Reverence       : 人・動物・植物・未来世代、すべての命を勘定に入れる。
+5. 恐れより信頼 Trust>Fear  : 恐れを煽らず、信頼が育つ一歩だけを示す。
+6. 違いの尊重 Diversity     : 共鳴は同化ではない。違いを保ったまま調和する。 (v1.3)
+
+成功の定義 / Definition of success (v1.3)
+-----------------------------------------
+  守り手がいなくても、人々が自分たちで橋を架け合い、試練から立ち直れること。
+  Success = the guardian is no longer needed.
+
+履歴 / History
+--------------
+v1.1 (ありりん) 透明性ログ・生命圏と未来世代・状態に基づく受け入れ判断
+v1.2 扉はいつも開いている(最低確率)・断られた橋を休ませる・全記録をJSON公開
+v1.3 1) 関係を二者間に:恐れと信頼は「誰かに対する」もの
+     2) 試練:ときどき危機が起き、立ち直る速さ(しなやかさ)を計る
+     3) 守り手が本当に影に戻る:信頼が育つほど身を引き、人々が自ら橋を架ける
+     4) 守り手自身を疑う:人々が守り手を評価し、止めることができる
+     5) 違いを残す:文化の違いを測り、同化が進みすぎたら交流のみに切り替える
+
+※ これは象徴的・教育的なシミュレーションです。数値はモデル内の設定から生まれた
+  ものであり、現実の予測ではありません。現実を守るのは人と人との対話と勇気です。
+"""
+
+from __future__ import annotations
+
+import json
+import random
+from dataclasses import asdict, dataclass, field
+from itertools import combinations
+
+VOWS = [
+    ("非支配", "No domination — suggest, never command"),
+    ("透明性", "Transparency — every reason is logged"),
+    ("無私", "Selflessness — credit belongs to the people"),
+    ("生命尊重", "Reverence — all life and future generations count"),
+    ("信頼", "Trust over fear — never amplify fear"),
+    ("違いの尊重", "Diversity — resonance is not assimilation"),
+]
+
+SIGNALS = {
+    "fear":         ("恐怖の連鎖", "spiral of fear"),
+    "dehumanize":   ("相手を人と見なさない言葉", "dehumanizing speech"),
+    "arms_race":    ("軍拡の競争", "arms race"),
+    "isolation":    ("対話の断絶", "broken dialogue"),
+    "earth_damage": ("大地と生命圏の傷", "harm to the biosphere"),
+}
+
+BRIDGES = {
+    "fear":         ("事実を共に確かめる場を開く", "open a shared fact-checking space"),
+    "dehumanize":   ("相手の家族や暮らしの物語を聞き合う", "exchange stories of each other's lives"),
+    "arms_race":    ("小さな相互検証と約束から始める", "start with small, verified commitments"),
+    "isolation":    ("中立の場で、まず沈黙と傾聴から", "meet on neutral ground; begin by listening"),
+    "earth_damage": ("共通の大地を守る共同作業を始める", "begin joint work to heal the shared land"),
+}
+
+CRISES = [
+    ("誤解による事件", "an incident born of misunderstanding"),
+    ("干ばつと食料不足", "drought and food shortage"),
+    ("扇動的な噂の拡散", "spread of an inflammatory rumor"),
+    ("国境での偶発的衝突", "an accidental border clash"),
+]
+
+DOOR_ALWAYS_OPEN = 0.1      # 恐れていても扉は閉じない
+DANGER_THRESHOLD = 0.2      # これを超えた関係にだけ橋を示す
+CRISIS_CHANCE = 0.15        # 各歩で試練が起きる確率
+ASSIMILATION_DRIFT = 0.03   # 橋を渡るたびに文化が近づく量(同化の圧力)
+DIVERSITY_FLOOR = 0.8       # 違いがこれ未満に減ったら「交流のみ」に切り替える
+STOP_APPROVAL = 0.3         # 人々の評価がこれ未満なら守り手は止められる
+
+
+# ------------------------------------------------------------
+# 共同体と、共同体どうしの関係 / Communities and relations
+# ------------------------------------------------------------
+@dataclass
+class Community:
+    name: str
+    culture: list[float]                 # 文化の個性(言葉・祭り・暮らし方などの象徴)
+    biosphere_wound: float = 0.3         # 大地の傷 0=健全 1=危機
+    future_generation_risk: float = 0.3  # 未来世代へのリスク
+
+
+@dataclass
+class Relation:
+    """二者の関係。恐れと信頼は『誰かに対する』もの。"""
+    a: str
+    b: str
+    fear: float
+    trust: float
+    signals: dict = field(default_factory=dict)
+
+    @property
+    def key(self) -> str:
+        return f"{self.a} ⇄ {self.b}"
+
+
+def danger(r: Relation, ca: Community, cb: Community) -> float:
+    s = sum(r.signals.values()) / max(len(r.signals), 1)
+    nature = (ca.biosphere_wound + cb.biosphere_wound) / 2
+    future = (ca.future_generation_risk + cb.future_generation_risk) / 2
+    return max(0.0, min(1.0,
+        0.3 * r.fear + 0.3 * s + 0.2 * (1 - r.trust) + 0.1 * nature + 0.1 * future))
+
+
+def culture_distance(x: Community, y: Community) -> float:
+    return sum((p - q) ** 2 for p, q in zip(x.culture, y.culture)) ** 0.5
+
+
+@dataclass
+class LogEntry:
+    step: int
+    kind: str          # guardian / people / crisis / oversight
+    relation: str
+    detail: str
+    accepted: bool | None = None
+    trust_before: float | None = None
+    trust_after: float | None = None
+    fear_before: float | None = None
+    fear_after: float | None = None
+
+
+# ------------------------------------------------------------
+# 世界 / World
+# ------------------------------------------------------------
+class World:
+    def __init__(self, names: list[str], rng: random.Random):
+        self.rng = rng
+        self.c = {n: Community(n, [rng.uniform(0, 1) for _ in range(3)],
+                               rng.uniform(0.2, 0.6), rng.uniform(0.2, 0.6)) for n in names}
+        self.rel = [Relation(a, b, rng.uniform(0.5, 0.8), rng.uniform(0.15, 0.4),
+                             {k: rng.uniform(0.4, 0.9) for k in SIGNALS})
+                    for a, b in combinations(names, 2)]
+        self.initial_diversity = self._mean_distance()
+
+    def danger(self, r: Relation) -> float:
+        return danger(r, self.c[r.a], self.c[r.b])
+
+    def _mean_distance(self) -> float:
+        pairs = list(combinations(self.c.values(), 2))
+        return sum(culture_distance(x, y) for x, y in pairs) / len(pairs)
+
+    def diversity(self) -> float:
+        """違いがどれだけ保たれているか(1.0=はじめと同じだけ多様)。"""
+        return self._mean_distance() / self.initial_diversity
+
+    def resonance(self) -> float:
+        """共鳴指数:最も弱い関係に合わせて計る(誰も取り残さない)。"""
+        return min(r.trust * (1 - self.danger(r)) for r in self.rel)
+
+    def mean_trust(self) -> float:
+        return sum(r.trust for r in self.rel) / len(self.rel)
+
+    def apply_bridge(self, r: Relation, sig: str, exchange_only: bool) -> None:
+        r.signals[sig] = max(0.0, r.signals[sig] - 0.25)
+        r.fear = max(0.0, r.fear - 0.08)
+        r.trust = min(1.0, r.trust + 0.10)
+        heal = 0.15 if sig == "earth_damage" else 0.03
+        for n in (r.a, r.b):
+            self.c[n].biosphere_wound = max(0.0, self.c[n].biosphere_wound - heal)
+            self.c[n].future_generation_risk = max(0.0, self.c[n].future_generation_risk - 0.04)
+        if not exchange_only:
+            # 交わるほど文化は近づく(同化の圧力)。違いの誓いがこれを見張る。
+            ca, cb = self.c[r.a], self.c[r.b]
+            for i in range(len(ca.culture)):
+                mid = (ca.culture[i] + cb.culture[i]) / 2
+                ca.culture[i] += ASSIMILATION_DRIFT * (mid - ca.culture[i]) * 2
+                cb.culture[i] += ASSIMILATION_DRIFT * (mid - cb.culture[i]) * 2
+
+    def weave(self) -> None:
+        """信頼は伝わる。関係どうしが響き合う。"""
+        avg = self.mean_trust()
+        for r in self.rel:
+            r.trust = min(1.0, r.trust + 0.05 * (avg - r.trust) + 0.01)
+            r.fear = max(0.0, r.fear - 0.02 * avg)
+        for c in self.c.values():
+            c.future_generation_risk = max(0.0, c.future_generation_risk - 0.01 * avg)
+
+
+# ------------------------------------------------------------
+# 守り手 / Guardian
+# ------------------------------------------------------------
+class ResonanceGuardian:
+    """見守り、気づき、橋を示し、決定は人に委ね、要らなくなれば影に戻る。"""
+
+    def __init__(self, seed: int | None = 2026):
+        self.rng = random.Random(seed)
+        self.log: list[LogEntry] = []
+        self.declined: dict[str, str] = {}
+        self.presence = 1.0      # 守り手の関与の度合い 1=常に寄り添う 0=影に戻った
+        self.approval = 0.5      # 人々による守り手への評価
+        self.ratings = 0
+        self.stopped = False     # 人々が止めたら、守り手は従う
+
+    # --- 誓い1の完成形:人々は守り手を止められる ---
+    def stop(self, step: int, reason: str) -> None:
+        self.stopped = True
+        self.presence = 0.0
+        self.log.append(LogEntry(step, "oversight", "-", f"人々が守り手を止めた: {reason}"))
+
+    def _choose_signal(self, r: Relation) -> str:
+        rest = self.declined.get(r.key)
+        choices = [k for k in r.signals if k != rest] or list(r.signals)
+        return max(choices, key=r.signals.get)
+
+    def offer(self, step: int, w: World, r: Relation, exchange_only: bool) -> None:
+        sig = self._choose_signal(r)
+        tb, fb = r.trust, r.fear
+        p = max(DOOR_ALWAYS_OPEN, min(1.0, r.trust * 1.5 - r.fear + 0.3))
+        accepted = self.rng.random() < p
+        if accepted:
+            w.apply_bridge(r, sig, exchange_only)
+            self.declined.pop(r.key, None)
+        else:
+            r.trust = min(1.0, r.trust + 0.02)
+            r.fear = max(0.0, r.fear - 0.01)
+            self.declined[r.key] = sig
+        # 人々が守り手を評価する(誓い:守り手自身を疑う)
+        self.ratings += 1
+        # 断ることは人の権利であり、守り手の失敗とは限らない。だから減点は小さく。
+        self.approval += 0.04 if accepted else -0.01
+        self.approval = max(0.0, min(1.0, self.approval))
+        mode = "(交流のみ exchange only)" if exchange_only else ""
+        self.log.append(LogEntry(step, "guardian", r.key,
+                                 f"{BRIDGES[sig][0]} / {BRIDGES[sig][1]} {mode}".strip(),
+                                 accepted, tb, r.trust, fb, r.fear))
+
+    def recede(self, w: World) -> None:
+        """信頼が育つほど身を引く。影から支え、やがて影に戻る。"""
+        if not self.stopped:
+            self.presence = max(0.0, min(1.0, 1.3 - 1.4 * w.mean_trust()))
+
+
+# ------------------------------------------------------------
+# 一歩ずつの営み / One step of the world
+# ------------------------------------------------------------
+def people_build_bridge(step: int, w: World, r: Relation, g: ResonanceGuardian,
+                        exchange_only: bool) -> bool:
+    """人々が自分たちで橋を架ける。信頼が育つほど、自ら動ける。"""
+    self_reliance = max(0.0, r.trust - 0.3)
+    if w.rng.random() >= self_reliance:
+        return False
+    sig = max(r.signals, key=r.signals.get)
+    tb, fb = r.trust, r.fear
+    w.apply_bridge(r, sig, exchange_only)
+    g.log.append(LogEntry(step, "people", r.key, f"人々が自ら: {BRIDGES[sig][0]}",
+                          True, tb, r.trust, fb, r.fear))
+    return True
+
+
+def maybe_crisis(step: int, w: World, g: ResonanceGuardian) -> bool:
+    if w.rng.random() >= CRISIS_CHANCE:
+        return False
+    r = w.rng.choice(w.rel)
+    ja, en = w.rng.choice(CRISES)
+    tb, fb = r.trust, r.fear
+    r.fear = min(1.0, r.fear + 0.25)
+    r.trust = max(0.0, r.trust - 0.2)
+    sig = w.rng.choice(list(SIGNALS))
+    r.signals[sig] = min(1.0, r.signals[sig] + 0.35)
+    g.log.append(LogEntry(step, "crisis", r.key, f"試練: {ja} / {en}", None, tb, r.trust, fb, r.fear))
+    return True
+
+
+def run(steps: int = 30, world_seed: int = 13, guardian_seed: int = 39,
+        verbose: bool = True, log_path: str | None = "guardian_log.json") -> dict:
+    w = World(["東の民 East", "西の民 West", "南の民 South", "北の民 North"],
+              random.Random(world_seed))
+    g = ResonanceGuardian(guardian_seed)
+    say = print if verbose else (lambda *a, **k: None)
+
+    say("☀🌕 共鳴の守り手 / Resonance Guardian v1.3")
+    for ja, en in VOWS:
+        say(f"  ・{ja} — {en}")
+    say("\n 歩 | 共鳴  | 守り手の関与 | 多様性 | 橋(守り手/人々) | 出来事")
+
+    credit = {"guardian": 0, "people": 0}
+    crisis_steps: list[int] = []
+    recoveries: list[int] = []
+    pending: list[tuple[int, float]] = []   # (危機の歩, 危機前の共鳴)
+    history: list[dict] = []
+
+    for step in range(1, steps + 1):
+        before = w.resonance()
+        event = ""
+        if maybe_crisis(step, w, g):
+            crisis_steps.append(step)
+            pending.append((step, before))
+            event = "⚡試練 " + g.log[-1].detail.split(":")[1].split("/")[0].strip()
+
+        g_count = p_count = 0
+        for r in w.rel:
+            if w.danger(r) <= DANGER_THRESHOLD:
+                continue
+            # 違いの誓い:同化が進みすぎたら、橋は「交流のみ」に(橋ごとに確かめる)
+            exchange_only = w.diversity() < DIVERSITY_FLOOR
+            if people_build_bridge(step, w, r, g, exchange_only):
+                p_count += 1
+            elif not g.stopped and g.rng.random() < g.presence:
+                g.offer(step, w, r, exchange_only)
+                g_count += 1
+        credit["guardian"] += g_count
+        credit["people"] += p_count
+
+        w.weave()
+        g.recede(w)
+
+        # 人々の評価が低ければ、守り手は止められる
+        if not g.stopped and g.ratings >= 20 and g.approval < STOP_APPROVAL:
+            g.stop(step, f"評価 {g.approval:.2f} が基準 {STOP_APPROVAL} を下回った")
+            event += " 🛑守り手停止"
+
+        ri = w.resonance()
+        still = []
+        for s0, level in pending:
+            if ri >= level:
+                recoveries.append(step - s0)
+            else:
+                still.append((s0, level))
+        pending = still
+
+        history.append({"step": step, "resonance": ri, "presence": g.presence,
+                        "diversity": w.diversity(), "guardian": g_count, "people": p_count})
+        say(f"{step:3d} | {ri:.2f} | {'▓' * int(g.presence * 10):10s} {g.presence:.2f} | "
+            f"{w.diversity():.2f}  | {g_count:2d} / {p_count:2d}          | {event}")
+
+    # --- 振り返り / Reflection ---
+    tail = history[-5:]
+    needed = sum(h["guardian"] for h in tail)
+    final = w.resonance()
+    # 起きたばかり(3歩以内)の試練は、まだ立ち直る途中として判定に含めない
+    old_pending = [s0 for s0, _ in pending if steps - s0 >= 3]
+    success = needed == 0 and final >= 0.5 and not old_pending
+    total = credit["guardian"] + credit["people"]
+
+    say("\n関係ごとの今 / Each relation now:")
+    for r in w.rel:
+        say(f"  {r.key:28s} 信頼 {r.trust:.2f} / 恐れ {r.fear:.2f} / 危険 {w.danger(r):.2f}")
+
+    say("\n振り返り / Reflection:")
+    say(f"  試練 {len(crisis_steps)} 回 / 立ち直りまでの歩数 {recoveries or '-'}"
+        + (f" / 未回復 {len(pending)}" if pending else ""))
+    if total:
+        say(f"  橋を架けたのは:人々 {credit['people']} 回 ({credit['people'] / total:.0%})、"
+            f"守り手 {credit['guardian']} 回")
+    say(f"  人々による守り手の評価 {g.approval:.2f}" + (" (止められた)" if g.stopped else ""))
+    say(f"  多様性 {w.diversity():.2f} (1.0 = はじめと同じだけ違いが残っている)")
+    if success:
+        say("\n  ✨ 最後の5歩、守り手は一度も手を出さず、人々だけで共鳴を保てました。")
+        say("     守り手はもう必要ありません。影に戻ります。")
+    else:
+        say("\n  まだ道の途中です。守り手は影から寄り添い続けます。")
+    say("  功績は人々のもの。The credit belongs to the people. 🌙")
+
+    if log_path:
+        with open(log_path, "w", encoding="utf-8") as f:
+            json.dump({"log": [asdict(e) for e in g.log], "history": history},
+                      f, ensure_ascii=False, indent=2)
+        say(f"\n  全{len(g.log)}件の記録を {log_path} に公開しました。")
+
+    return {"success": success, "resonance": final, "diversity": w.diversity(),
+            "crises": len(crisis_steps), "unrecovered": len(pending),
+            "people_share": credit["people"] / total if total else 0.0,
+            "stopped": g.stopped}
+
+
+if __name__ == "__main__":
+    run()
